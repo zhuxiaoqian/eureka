@@ -1,0 +1,38 @@
+apply plugin: 'nebula.test-jar'
+apply plugin: 'provided-base'
+
+configurations.all {
+    // jersey2
+    exclude group: 'org.glassfish.jersey'
+}
+
+dependencies {
+    compile "com.netflix.netflix-commons:netflix-eventbus:0.3.0"
+    compile 'com.thoughtworks.xstream:xstream:1.4.9'
+    compile "com.netflix.archaius:archaius-core:${archaiusVersion}"
+    compile 'javax.ws.rs:jsr311-api:1.1.1'
+    compile "com.netflix.servo:servo-core:${servoVersion}"
+    compile "com.sun.jersey:jersey-core:${jerseyVersion}"
+    compile "com.sun.jersey:jersey-client:${jerseyVersion}"
+    compile "com.sun.jersey.contribs:jersey-apache-client4:${jerseyVersion}"
+    compile "org.apache.httpcomponents:httpclient:${apacheHttpClientVersion}"
+    compile "com.google.inject:guice:${guiceVersion}"
+
+    compile "com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}"
+    compile "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
+    compile "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+
+    // Eureka client uses JSON encoding by default
+    provided "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:${jacksonVersion}"
+    // Prefered jackson Stax serializer. Default Oracle has issues (adds empty namespace) and is slower
+    provided "org.codehaus.woodstox:woodstox-core-asl:${woodstoxVersion}"
+
+    runtime "org.codehaus.jettison:jettison:${jettisonVersion}"
+
+    testCompile project(':eureka-test-utils')
+    testCompile "junit:junit:${junit_version}"
+    testCompile 'org.mortbay.jetty:jetty:6.1H.22'
+    testCompile "org.mockito:mockito-core:${mockitoVersion}"
+    testCompile "org.mock-server:mockserver-netty:${mockserverVersion}"
+    testCompile "com.netflix.governator:governator:${governatorVersion}"
+}
