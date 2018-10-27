@@ -90,6 +90,12 @@ public class EurekaClientServerRestIntegrationTest {
                 serverCodecs,
                 eurekaServiceUrl
         );
+
+
+        /**
+         * 这一处就是让线程一直hang住，然后eureka client就可以来访问eureka server了
+         */
+        Thread.sleep(Long.MAX_VALUE);
     }
 
     @AfterClass
@@ -231,16 +237,34 @@ public class EurekaClientServerRestIntegrationTest {
 
     }
 
+    /**
+     * 之前的findWar方法就是到build/libs或者eureka-server/build/libs下面去找gradle build打包之后生产的war包，我通过gradle build打包之后在
+     * build/libs目录下面生成了eureka-server-0.0.1-SNAPSHOT.war包，这种方式不易调试，所以我们修改此处代码
+     *
+     * 改成我们自己手动去构建一个web环境
+     */
     private static void startServer() throws Exception {
-        File warFile = findWar();
+//        File warFile = findWar();
+//
+//        server = new Server(8080);
+//
+//        WebAppContext webapp = new WebAppContext();
+//        webapp.setContextPath("/");
+//        webapp.setWar(warFile.getAbsolutePath());
+//        server.setHandler(webapp);
+//
+//        server.start();
+//
+//        eurekaServiceUrl = "http://localhost:8080/v2";
+
 
         server = new Server(8080);
 
-        WebAppContext webapp = new WebAppContext();
-        webapp.setContextPath("/");
-        webapp.setWar(warFile.getAbsolutePath());
-        server.setHandler(webapp);
-
+        WebAppContext webAppCtx = new WebAppContext(new File("./eureka-server/src/main/webapp").getAbsolutePath(), "/");
+        webAppCtx.setDescriptor(new File("./eureka-server/src/main/webapp/WEB-INF/web.xml").getAbsolutePath());
+        webAppCtx.setResourceBase(new File("./eureka-server/src/main/resources").getAbsolutePath());
+        webAppCtx.setClassLoader(Thread.currentThread().getContextClassLoader());
+        server.setHandler(webAppCtx);
         server.start();
 
         eurekaServiceUrl = "http://localhost:8080/v2";
