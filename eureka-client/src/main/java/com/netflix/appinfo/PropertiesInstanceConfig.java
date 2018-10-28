@@ -29,6 +29,7 @@ import static com.netflix.appinfo.PropertyBasedInstanceConfigConstants.*;
 
 /**
  * A properties based {@link InstanceInfo} configuration.
+ * 一个基于Instance配置的属性配置
  *
  * <p>
  * The information required for registration with eureka server is provided in a
@@ -37,12 +38,17 @@ import static com.netflix.appinfo.PropertyBasedInstanceConfigConstants.*;
  * the suffix <em>.properties</em>. If the property is not specified,
  * <em>eureka-client.properties</em> is assumed as the default.The properties
  * that are looked up uses the <em>namespace</em> passed on to this class.
+ *
+ * eureka server需要eureka client注册的时候的一些信息，这些信息一般都是在类路径下的以eureka.client.props为开头的，以properties为后缀的文件。
+ * 如果没有特殊制定，则默认使用eureka-client.properties
  * </p>
  *
  * <p>
  * If the <em>eureka.environment</em> property is specified, additionally
  * <em>eureka-client-<eureka.environment>.properties</em> is loaded in addition
  * to <em>eureka-client.properties</em>.
+ *
+ * 如果有指定eureka-client-<eureka.environment>.properties则覆盖默认的eureka-client.properties文件。
  * </p>
  *
  * @author Karthik Ranganathan
@@ -55,10 +61,12 @@ public abstract class PropertiesInstanceConfig extends AbstractInstanceConfig im
     private String appGrpNameFromEnv;
 
     public PropertiesInstanceConfig() {
+        //根据带有namespace参数的构造函数，此时的namespace是eureka
         this(CommonConstants.DEFAULT_CONFIG_NAMESPACE);
     }
 
     public PropertiesInstanceConfig(String namespace) {
+        //跟到二个参数的构造函数里
         this(namespace, new DataCenterInfo() {
             @Override
             public Name getName() {
@@ -77,6 +85,7 @@ public abstract class PropertiesInstanceConfig extends AbstractInstanceConfig im
         appGrpNameFromEnv = ConfigurationManager.getConfigInstance()
                 .getString(FALLBACK_APP_GROUP_KEY, Values.UNKNOWN_APPLICATION);
 
+        //CommonConstants.CONFIG_FILE_NAME：eureka-client
         this.configInstance = Archaius1Utils.initConfig(CommonConstants.CONFIG_FILE_NAME);
     }
 

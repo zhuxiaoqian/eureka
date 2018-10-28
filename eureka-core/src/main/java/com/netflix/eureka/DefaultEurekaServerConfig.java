@@ -103,10 +103,11 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
         ConfigurationManager.getConfigInstance().setProperty(
                 ARCHAIUS_DEPLOYMENT_ENVIRONMENT, env);
 
+        //要加载的配置文件，配置文件默认的名字是eureka-server
         String eurekaPropsFile = EUREKA_PROPS_FILE.get();
         try {
-            // ConfigurationManager
-            // .loadPropertiesFromResources(eurekaPropsFile);
+            // ConfigurationManager.loadPropertiesFromResources(eurekaPropsFile);
+            //从eureka中加载配置文件到配置类中，然后加载的内容放在ConfigurationManager类中
             ConfigurationManager
                     .loadCascadedPropertiesFromResources(eurekaPropsFile);
         } catch (IOException e) {

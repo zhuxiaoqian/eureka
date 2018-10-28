@@ -1,9 +1,9 @@
 ## Example Overview
-The eureka example requires 3 participants:
-* a centralized eureka server for registration and discovery
-* an example service to register with eureka that exposes a REST endpoint
+The eureka example requires 3 participants:（eureka example需要三个参与者）
+* a centralized eureka server for registration and discovery()（用于注册和发现的集中式eureka服务器）
+* an example service to register with eureka that exposes a REST endpoint （一个可以向eureka server暴露的断点去注册服务的例子）
 * an example client that discovers the example service via discovery, and then queries the example service on it's
-  registered REST endpoint.
+  registered REST endpoint.（一个例子是通过服务发现这个注册的服务，并且可以通过服务断点查到已经注册过的服务）
 
 ### Setting up the Eureka server
 1. Edit [eureka-server.properties](https://github.com/Netflix/eureka/blob/master/eureka-server/src/main/resources/eureka-server.properties) and uncomment the two settings that makes the demo server start up faster (via disabling safeguards)
