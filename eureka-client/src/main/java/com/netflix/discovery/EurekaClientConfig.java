@@ -26,16 +26,22 @@ import com.netflix.discovery.shared.transport.EurekaTransportConfig;
  * Configuration information required by the eureka clients to register an
  * instance with <em>Eureka</em> server.
  *
+ * eureka客户端向eureka server注册的时候需要的客户端信息
+ *
  * <p>
  * Most of the required information is provided by the default configuration
  * {@link DefaultEurekaClientConfig}. The users just need to provide the eureka
  * server service urls. The Eureka server service urls can be configured by 2
  * mechanisms
  *
+ * 大多数使用默认的DefaultEurekaClientConfig中的配置即可。用户只需要提供一个eureka server服务的url地址即可。
+ * eureka server urls可以通过二种机制进行配置：
+ *
  * 1) By registering the information in the DNS. 2) By specifying it in the
  * configuration.
  * </p>
- *
+ * 1.通过DNS的配置信息
+ * 2.通过配置文件中的配置
  *
  * Once the client is registered, users can look up information from
  * {@link EurekaClient} based on <em>virtual hostname</em> (also called
@@ -43,9 +49,14 @@ import com.netflix.discovery.shared.transport.EurekaTransportConfig;
  * information necessary to talk to other instances registered with
  * <em>Eureka</em>.
  *
+ * 一旦eureka client注册，用户可以根据基于virtual hostname（也被称作VIPAddress）的EurekaClient获得我们需要的信息，
+ * 通过的方式是通过和其他注册到eureka的instances进行交流。（目前先这样翻译）
+ *
  * <p>
  * Note that all configurations are not effective at runtime unless and
  * otherwise specified.
+ *
+ * 值得注意的是除非特别说明不然所有的配置在运行期都无效。（这句话啥意思）
  * </p>
  *
  * @author Karthik Ranganathan
@@ -57,6 +68,8 @@ public interface EurekaClientConfig {
     /**
      * Indicates how often(in seconds) to fetch the registry information from
      * the eureka server.
+     *
+     * 表明eureka client多久一次去eureka server去抓取一次服务列表
      *
      * @return the fetch interval in seconds.
      */
@@ -456,6 +469,7 @@ public interface EurekaClientConfig {
 
     /**
      * The thread pool size for the heartbeatExecutor to initialise with
+     * 心跳线程池的初始化线程池大小
      *
      * @return the heartbeatExecutor thread pool size
      */
@@ -472,6 +486,7 @@ public interface EurekaClientConfig {
 
     /**
      * The thread pool size for the cacheRefreshExecutor to initialise with
+     * 支持缓存刷下的线程池初始化大小
      *
      * @return the cacheRefreshExecutor thread pool size
      */

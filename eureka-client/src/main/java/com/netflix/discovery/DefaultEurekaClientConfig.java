@@ -80,6 +80,8 @@ public class DefaultEurekaClientConfig implements EurekaClientConfig {
                 ? namespace
                 : namespace + ".";
 
+        //CommonConstants.CONFIG_FILE_NAME：eureka-client，一样的加载eureka-client.properties文件，
+        // 并将值赋值给DynamicPropertyFactory工厂类
         this.configInstance = Archaius1Utils.initConfig(CommonConstants.CONFIG_FILE_NAME);
         this.transportConfig = new DefaultEurekaTransportConfig(namespace, configInstance);
     }

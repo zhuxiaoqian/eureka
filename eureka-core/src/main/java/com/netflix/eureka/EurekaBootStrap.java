@@ -178,9 +178,11 @@ public class EurekaBootStrap implements ServletContextListener {
             applicationInfoManager = new ApplicationInfoManager(
                     //get方法返回一个instanceInfo对象
                     instanceConfig, new EurekaConfigBasedInstanceInfoProvider(instanceConfig).get());
-            
+
+            //跟进这个构造函数中，读取eureka-client.properties文件，加载到EurekaClientConfig这个接口类中，
+            //EurekaClientConfig这个接口类也有一个默认的DefaultEurekaClientConfig接口实现
             EurekaClientConfig eurekaClientConfig = new DefaultEurekaClientConfig();
-            // 跟进去这个构造函数
+            //跟进去这个构造函数
             eurekaClient = new DiscoveryClient(applicationInfoManager, eurekaClientConfig);
         } else {
             applicationInfoManager = eurekaClient.getApplicationInfoManager();
