@@ -421,7 +421,10 @@ public class DiscoveryClient implements EurekaClient {
             throw new RuntimeException("Failed to initialize DiscoveryClient!", e);
         }
 
+        //如果是eureka集群的时候我们是要将fetchRegistry设置为true，registerWithEureka也是要设置为true的
+        //fetchRegistry就是拉取注册表的意思
         if (clientConfig.shouldFetchRegistry() && !fetchRegistry(false)) {
+            //如果拉取注册表失败了（eureka server全部挂了）启用备用的注册表
             fetchRegistryFromBackup();
         }
 
@@ -429,6 +432,8 @@ public class DiscoveryClient implements EurekaClient {
         if (this.preRegistrationHandler != null) {
             this.preRegistrationHandler.beforeRegistration();
         }
+
+        //初始化线程,包括二个线程一个是心跳检测，一个缓存刷新
         initScheduledTasks();
 
         try {
@@ -922,6 +927,8 @@ public class DiscoveryClient implements EurekaClient {
      * <p>
      * This method tries to get only deltas after the first fetch unless there
      * is an issue in reconciling eureka server and client registry information.
+     *
+     * 只有第一次拉取或者deltas设置为disabled的时候拉取全量注册表，否则拉取增量注册表
      * </p>
      *
      * @param forceFullRegistryFetch Forces a full registry fetch.
