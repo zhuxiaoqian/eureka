@@ -73,6 +73,7 @@ public class PeerEurekaNodes {
         return serverConfig.getHealthStatusMinNumberOfAvailablePeers();
     }
 
+    //很明显，这个start做的事情就是updatePeerEurekaNodes方法做的事情，这边究竟干嘛的，待会儿调试一下
     public void start() {
         taskExecutor = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactory() {
@@ -148,6 +149,8 @@ public class PeerEurekaNodes {
     /**
      * Given new set of replica URLs, destroy {@link PeerEurekaNode}s no longer available, and
      * create new ones.
+     *
+     * 基于新的url副本创建一个新的url副本集合，不再使用之前的PeerEurekaNodes的，
      *
      * @param newPeerUrls peer node URLs; this collection should have local node's URL filtered out
      */

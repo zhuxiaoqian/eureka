@@ -64,10 +64,15 @@ import javax.inject.Singleton;
  * Handles replication of all operations to {@link AbstractInstanceRegistry} to peer
  * <em>Eureka</em> nodes to keep them all in sync.
  *
+ * AbstractInstanceRegistry是处理所有向eureka server的eureka client请求
+ * 就是异步同步eureka node之间的所有向eureka server请求的eureka client请求，就是多个eureka node之间复制同步之间的注册信息。
+ *
  * <p>
  * Primary operations that are replicated are the
  * <em>Registers,Renewals,Cancels,Expirations and Status Changes</em>
  * </p>
+ *
+ * 复制的动作主要包括注册，续约，下线，过期和状态变更，
  *
  * <p>
  * When the eureka server starts up it tries to fetch all the registry
@@ -77,12 +82,20 @@ import javax.inject.Singleton;
  * {@link com.netflix.eureka.EurekaServerConfig#getWaitTimeInMsWhenSyncEmpty()}.
  * </p>
  *
+ * 当eureka server启动服务器的时候，会拉取其他的eureka node的注册信息。如果因为一些原因造成拉取服务注册信息失败，
+ * 则会在com.netflix.eureka.EurekaServerConfig#getWaitTimeInMsWhenSyncEmpty()特定的时候后再去拉取
+ *
  * <p>
  * One important thing to note about <em>renewals</em>.If the renewal drops more
  * than the specified threshold as specified in
  * {@link com.netflix.eureka.EurekaServerConfig#getRenewalPercentThreshold()} within a period of
  * {@link com.netflix.eureka.EurekaServerConfig#getRenewalThresholdUpdateIntervalMs()}, eureka
  * perceives this as a danger and stops expiring instances.
+ *
+ * 值得注意的是服务续约事件。如果服务列表中的服务在一段特定的时间（com.netflix.eureka.EurekaServerConfig
+ * #getRenewalThresholdUpdateIntervalMs()：默认值15min）
+ * 发送的续约心跳小于一个阀值（com.netflix.eureka.EurekaServerConfig#getRenewalPercentThreshold()：85%），
+ * eureka会进入保护模式（认为这个是个危险行为，并且停止服务到期）
  * </p>
  *
  * @author Karthik Ranganathan, Greg Kim
@@ -131,6 +144,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
             ServerCodecs serverCodecs,
             EurekaClient eurekaClient
     ) {
+        //跟进这个构造函数
         super(serverConfig, clientConfig, serverCodecs);
         this.eurekaClient = eurekaClient;
         this.numberOfReplicationsLastMin = new MeasuredRate(1000 * 60 * 1);
@@ -151,6 +165,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
         this.peerEurekaNodes = peerEurekaNodes;
         initializedResponseCache();
         scheduleRenewalThresholdUpdateTask();
+        //这边调试一下，看看是干嘛的
         initRemoteRegionRegistry();
 
         try {
@@ -185,6 +200,9 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      * The renewal threshold would be used to determine if the renewals drop
      * dramatically because of network partition and to protect expiring too
      * many instances at a time.
+     *
+     * 这边的代码我觉得是跟自我保护有关，续约的时候在指定的时间心跳次数达不到指定的阀值就进入自我保护模式，
+     * 这边的源码在下面分析到自我保护模式的时候在分析
      *
      */
     private void scheduleRenewalThresholdUpdateTask() {

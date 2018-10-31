@@ -111,16 +111,20 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
     /**
      * Create a new, empty instance registry.
+     * 创建一个空的，新的实例注册表
      */
     protected AbstractInstanceRegistry(EurekaServerConfig serverConfig, EurekaClientConfig clientConfig, ServerCodecs serverCodecs) {
         this.serverConfig = serverConfig;
         this.clientConfig = clientConfig;
         this.serverCodecs = serverCodecs;
+        //recentCanceledQueue见名知义表示最近摘掉的实例队列
         this.recentCanceledQueue = new CircularQueue<Pair<Long, String>>(1000);
+        //recentRegisteredQueue表示最近注册的实例队列
         this.recentRegisteredQueue = new CircularQueue<Pair<Long, String>>(1000);
 
         this.renewsLastMin = new MeasuredRate(1000 * 60 * 1);
 
+        //这边也是重点，线程调度，从方法命名来看好像是获取增量注册表的定时job，默认的时间间隔是30s
         this.deltaRetentionTimer.schedule(getDeltaRetentionTask(),
                 serverConfig.getDeltaRetentionTimerIntervalInMs(),
                 serverConfig.getDeltaRetentionTimerIntervalInMs());

@@ -242,6 +242,8 @@ public interface EurekaServerConfig {
      * Get the time interval with which the clean up task should wake up and
      * check for expired delta information.
      *
+     * 获取增量注册表的更新时间
+     *
      * @return time in milliseconds.
      */
     long getDeltaRetentionTimerIntervalInMs();

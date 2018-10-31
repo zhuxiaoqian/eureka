@@ -188,6 +188,7 @@ public class EurekaBootStrap implements ServletContextListener {
             applicationInfoManager = eurekaClient.getApplicationInfoManager();
         }
 
+        //构造出PeerAwareInstanceRegistry对象，处理注册相关的事情
         PeerAwareInstanceRegistry registry;
         if (isAws(applicationInfoManager.getInfo())) {
             registry = new AwsInstanceRegistry(
@@ -199,6 +200,7 @@ public class EurekaBootStrap implements ServletContextListener {
             awsBinder = new AwsBinderDelegate(eurekaServerConfig, eurekaClient.getEurekaClientConfig(), registry, applicationInfoManager);
             awsBinder.start();
         } else {
+            //肯定是走这个逻辑，我们不是Aws的逻辑，这个构造函数里面包含着拉取增量注册表的时间间隔
             registry = new PeerAwareInstanceRegistryImpl(
                     eurekaServerConfig,
                     eurekaClient.getEurekaClientConfig(),
@@ -207,6 +209,7 @@ public class EurekaBootStrap implements ServletContextListener {
             );
         }
 
+        //处理peer节点相关的事情，peerEurekaNodes处理eureka集群node
         PeerEurekaNodes peerEurekaNodes = getPeerEurekaNodes(
                 registry,
                 eurekaServerConfig,
@@ -215,6 +218,7 @@ public class EurekaBootStrap implements ServletContextListener {
                 applicationInfoManager
         );
 
+        //完成eureka server上下文（context）的构建以及初始化，将上面所有的东西构造成一个服务器上下文
         serverContext = new DefaultEurekaServerContext(
                 eurekaServerConfig,
                 serverCodecs,
@@ -229,10 +233,12 @@ public class EurekaBootStrap implements ServletContextListener {
         logger.info("Initialized server context");
 
         // Copy registry from neighboring eureka node
+        //从临近的eureka node中复制注册表
         int registryCount = registry.syncUp();
         registry.openForTraffic(applicationInfoManager, registryCount);
 
         // Register all monitoring statistics.
+        //注册所有的监控信息，我们直到这边肯定是和eureka server集群的监控有关
         EurekaMonitors.registerAllStats();
     }
     
