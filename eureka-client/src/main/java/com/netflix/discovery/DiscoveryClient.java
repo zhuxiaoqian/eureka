@@ -1252,6 +1252,7 @@ public class DiscoveryClient implements EurekaClient {
 
     /**
      * Initializes all scheduled tasks.
+     * 初始化所有的线程调度
      */
     private void initScheduledTasks() {
         if (clientConfig.shouldFetchRegistry()) {
@@ -1290,9 +1291,11 @@ public class DiscoveryClient implements EurekaClient {
                     renewalIntervalInSecs, TimeUnit.SECONDS);
 
             // InstanceInfo replicator
+            //实例复制
             instanceInfoReplicator = new InstanceInfoReplicator(
                     this,
                     instanceInfo,
+                    //30s，多久复制一次实例复制
                     clientConfig.getInstanceInfoReplicationIntervalSeconds(),
                     2); // burstSize
 
