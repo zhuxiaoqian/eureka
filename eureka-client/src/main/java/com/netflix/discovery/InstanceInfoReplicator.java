@@ -62,6 +62,7 @@ class InstanceInfoReplicator implements Runnable {
     public void start(int initialDelayMs) {
         if (started.compareAndSet(false, true)) {
             instanceInfo.setIsDirty();  // for initial register
+            //40s之后去执行线程，instanceInfoReplicator是一个线程，我们去看看run方法中的逻辑，initialDelayMs的值默认值是40s
             Future next = scheduler.schedule(this, initialDelayMs, TimeUnit.SECONDS);
             scheduledPeriodicRef.set(next);
         }
@@ -100,18 +101,25 @@ class InstanceInfoReplicator implements Runnable {
         }
     }
 
+    /**
+     * 每30s进行一次服务注册
+     */
     public void run() {
         try {
+            //刷新本地的instanceInfo实例。当观察到一个有效的刷新后，instanceInfo的isDirty这个标志设置为true
             discoveryClient.refreshInstanceInfo();
 
             Long dirtyTimestamp = instanceInfo.isDirtyWithTime();
+            //因为之前设置过isDirty，所以这里会执行进行服务注册
             if (dirtyTimestamp != null) {
+                //具体的服务注册代码
                 discoveryClient.register();
                 instanceInfo.unsetIsDirty(dirtyTimestamp);
             }
         } catch (Throwable t) {
             logger.warn("There was a problem with the instance info replicator", t);
         } finally {
+            //replicationIntervalSeconds：30s
             Future next = scheduler.schedule(this, replicationIntervalSeconds, TimeUnit.SECONDS);
             scheduledPeriodicRef.set(next);
         }

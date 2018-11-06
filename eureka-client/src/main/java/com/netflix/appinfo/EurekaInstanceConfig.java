@@ -120,6 +120,8 @@ public interface EurekaInstanceConfig {
      * {@link HealthCheckCallback} and then decides to make itself unavailable.
      * </p>
      *
+     * eureka client多久发送一次心跳到eureka server
+     *
      * @return time in seconds
      */
     int getLeaseRenewalIntervalInSeconds();
@@ -137,6 +139,8 @@ public interface EurekaInstanceConfig {
      * the value specified in {@link #getLeaseRenewalIntervalInSeconds()}
      * .
      * </p>
+     *
+     * 发送心跳多久之后没有回馈就在eureka server中的视图里删除此实例信息
      *
      * @return value indicating time in seconds.
      */

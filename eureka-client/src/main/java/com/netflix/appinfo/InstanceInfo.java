@@ -968,6 +968,7 @@ public class InstanceInfo {
 
     /**
      * Returns the lease information regarding when it expires.
+     * 返回何时续约信息
      *
      * @return the lease information of this instance.
      */

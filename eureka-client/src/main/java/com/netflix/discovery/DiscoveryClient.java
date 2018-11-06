@@ -816,11 +816,14 @@ public class DiscoveryClient implements EurekaClient {
 
     /**
      * Register with the eureka service by making the appropriate REST call.
+     *
+     * 通过相应的restful调用来进行eureka服务注册
      */
     boolean register() throws Throwable {
         logger.info(PREFIX + appPathIdentifier + ": registering service...");
         EurekaHttpResponse<Void> httpResponse;
         try {
+            //在这个类中进行eurekaTransport对象的实例化
             httpResponse = eurekaTransport.registrationClient.register(instanceInfo);
         } catch (Exception e) {
             logger.warn("{} - registration failed {}", PREFIX + appPathIdentifier, e.getMessage(), e);
@@ -1322,6 +1325,7 @@ public class DiscoveryClient implements EurekaClient {
                 applicationInfoManager.registerStatusChangeListener(statusChangeListener);
             }
 
+            //服务注册的具体代码
             instanceInfoReplicator.start(clientConfig.getInitialInstanceInfoReplicationIntervalSeconds());
         } else {
             logger.info("Not registering with Eureka server per configuration");
@@ -1388,9 +1392,13 @@ public class DiscoveryClient implements EurekaClient {
     /**
      * Refresh the current local instanceInfo. Note that after a valid refresh where changes are observed, the
      * isDirty flag on the instanceInfo is set to true
+     *
+     * 刷新本地的instanceInfo实例。当观察到一个有效的刷新后，instanceInfo的isDirty这个标志设置为true
      */
     void refreshInstanceInfo() {
+        //重新获取hostname去检查一下是否已经改变。如果已经修改，则数据中心DataCenterInfo也会刷新下次心跳的时候传递一个eureka server
         applicationInfoManager.refreshDataCenterInfoIfRequired();
+        //构建一个instanceinfo，将leaseInfo设置到instanceinfo，leaseInfo包括心跳时间，心跳反馈时间等等设置
         applicationInfoManager.refreshLeaseInfoIfRequired();
 
         InstanceStatus status;

@@ -195,6 +195,8 @@ public class ApplicationInfoManager {
      * <code>DataCenterInfo</code> is refetched and passed on to the eureka
      * server on next heartbeat.
      *
+     *  重新获取hostname去检查一下是否已经改变。如果已经修改，则数据中心DataCenterInfo也会刷新下次心跳的时候传递一个eureka server
+     *
      * see {@link InstanceInfo#getHostName()} for explanation on why the hostname is used as the default address
      */
     public void refreshDataCenterInfoIfRequired() {
@@ -226,7 +228,9 @@ public class ApplicationInfoManager {
         if (leaseInfo == null) {
             return;
         }
+        //得到我们配置的多久没收到心跳的反馈就摘除实例信息的时间
         int currentLeaseDuration = config.getLeaseExpirationDurationInSeconds();
+        //得到我们配置的发送心跳的时间
         int currentLeaseRenewal = config.getLeaseRenewalIntervalInSeconds();
         if (leaseInfo.getDurationInSecs() != currentLeaseDuration || leaseInfo.getRenewalIntervalInSecs() != currentLeaseRenewal) {
             LeaseInfo newLeaseInfo = LeaseInfo.Builder.newBuilder()
