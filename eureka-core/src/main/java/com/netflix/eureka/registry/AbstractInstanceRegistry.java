@@ -191,22 +191,33 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     /**
      * Registers a new instance with a given duration.
      *
+     * 注册的代码了
+     *
      * @see com.netflix.eureka.lease.LeaseManager#register(java.lang.Object, int, boolean)
      */
     public void register(InstanceInfo registrant, int leaseDuration, boolean isReplication) {
         try {
+            //使用读写锁，注册的时候使用读锁
             read.lock();
+            //appName，application或者其他，注册到Eureka的服务名称，
+            //查看当前的注册表中有没有维护当前服务的服务列表
             Map<String, Lease<InstanceInfo>> gMap = registry.get(registrant.getAppName());
+            //注册一次服务实例加1
             REGISTER.increment(isReplication);
+            //这边肯定是第一次服务注册走的逻辑，此时gMap为null
             if (gMap == null) {
+                //注册表的一个数据结构如下
                 final ConcurrentHashMap<String, Lease<InstanceInfo>> gNewMap = new ConcurrentHashMap<String, Lease<InstanceInfo>>();
                 gMap = registry.putIfAbsent(registrant.getAppName(), gNewMap);
                 if (gMap == null) {
                     gMap = gNewMap;
                 }
             }
+            //registrant.getId()：instanceId，i-0000001，服务实例id，一个服务名称会对应多个服务实例，每个服务实例的服务名称当然是一样的咯，但是服务实例id是不一样的
+            //如果是一个服务实例第一次来注册，就很简单，将服务实例信息放到了一个map中去，
             Lease<InstanceInfo> existingLease = gMap.get(registrant.getId());
             // Retain the last dirty timestamp without overwriting it, if there is already a lease
+            //如果已经注册了，则保留最后一个时间戳
             if (existingLease != null && (existingLease.getHolder() != null)) {
                 Long existingLastDirtyTimestamp = existingLease.getHolder().getLastDirtyTimestamp();
                 Long registrationLastDirtyTimestamp = registrant.getLastDirtyTimestamp();
@@ -222,6 +233,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 }
             } else {
                 // The lease does not exist and hence it is a new registration
+                //如果租约不存在，则重新注册
                 synchronized (lock) {
                     if (this.expectedNumberOfRenewsPerMin > 0) {
                         // Since the client wants to cancel it, reduce the threshold

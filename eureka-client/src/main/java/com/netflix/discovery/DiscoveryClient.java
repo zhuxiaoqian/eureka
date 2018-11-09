@@ -422,7 +422,7 @@ public class DiscoveryClient implements EurekaClient {
         }
 
         //如果是eureka集群的时候我们是要将fetchRegistry设置为true，registerWithEureka也是要设置为true的
-        //fetchRegistry就是拉取注册表的意思
+        //fetchRegistry就是拉取注册表的意思,第一次拉取注册的时候报错
         if (clientConfig.shouldFetchRegistry() && !fetchRegistry(false)) {
             //如果拉取注册表失败了（eureka server全部挂了）启用备用的注册表
             fetchRegistryFromBackup();

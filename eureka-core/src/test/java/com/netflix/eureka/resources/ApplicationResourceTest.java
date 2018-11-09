@@ -84,7 +84,11 @@ public class ApplicationResourceTest extends AbstractTester {
 
     @Test
     public void testGoodRegistration() throws Exception {
+        //构造出一个InstanceInfo实例，InstanceInfo包括两部分信息：
+        //1.主机名、ip地址、端口号、url地址(appName:application+i)
+        //2.lease（租约）的信息：保持心跳的间隔时间，最近心跳的时间，服务注册的时间，服务启动的时间。
         InstanceInfo noIdInfo = InstanceInfoGenerator.takeOne();
+        ///具体的注册代码addInstance方法
         Response response = applicationResource.addInstance(noIdInfo, false+"");
         assertThat(response.getStatus(), is(204));
     }

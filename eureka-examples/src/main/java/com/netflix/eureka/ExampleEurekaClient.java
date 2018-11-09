@@ -139,7 +139,7 @@ public class ExampleEurekaClient {
         System.setProperty("eureka.port", "8080");
         System.setProperty("eureka.preferSameZone", "false");
         System.setProperty("eureka.shouldUseDns", "false");
-        System.setProperty("eureka.shouldFetchRegistry", "true");
+        System.setProperty("eureka.shouldFetchRegistry", "false");
         System.setProperty("eureka.serviceUrl.defaultZone", myServiceUrl);
         System.setProperty("eureka.serviceUrl.default.defaultZone", myServiceUrl);
         System.setProperty("eureka.awsAccessId", "fake_aws_access_id");
@@ -162,6 +162,8 @@ public class ExampleEurekaClient {
         //初始化一个Eurekaclient
         //DefaultEurekaClientConfig：读取eureka-client.properites配置文件，形成一个eureka client的配置，接口接口对外提供eureka client的配置项的读取
         EurekaClient client = initializeEurekaClient(applicationInfoManager, new DefaultEurekaClientConfig());
+
+        Thread.sleep(Long.MAX_VALUE);
 
         // use the client，使用client向eureka server发送一些请求
         sampleClient.sendRequestToServiceUsingEureka(client);

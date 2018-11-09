@@ -138,6 +138,13 @@ public class ApplicationResource {
      * @param isReplication
      *            a header parameter containing information whether this is
      *            replicated from other nodes.
+     *
+     * 在eureka的代码中，大量的硬编码，对是否在亚马逊的AWS云上运行，还是在自己部署的机器上运行，都做了if else的判断，
+     * 这个是很不好的。不应该这样子的，起码得用策略模式，屏蔽掉这一块的if else。
+     *
+     * 策略模式，在外面的配置文件中，专门搞一个配置项，比如说eureka.server.env = default，但是可以配置为eureka.server.env = aws。然后在代码里，
+     * 如果是要区别对待AWS云环境的地方，直接就是根据这个外部的配置项，获取一个专门的对应的一个策略，比如说DefaultDataCenter逻辑，AWSDataCenter。
+     * 对外都是统一的接口，DataCenter。统一的都是面向DataCenter来执行的。
      */
     @POST
     @Consumes({"application/json", "application/xml"})
@@ -145,6 +152,8 @@ public class ApplicationResource {
                                 @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication) {
         logger.debug("Registering instance {} (replication={})", info.getId(), isReplication);
         // validate that the instanceinfo contains all the necessary required fields
+        //进来就是大量的check相关的代码逻辑，防御式编程，保持代码的健壮性。一个写的非常好的代码，一定要能够应对别人胡乱传递的各种参数，
+        // 所以重要的接口，上来就是一个代码逻辑，对请求参数进行大量的校验。
         if (isBlank(info.getId())) {
             return Response.status(400).entity("Missing instanceId").build();
         } else if (isBlank(info.getHostName())) {
@@ -166,9 +175,11 @@ public class ApplicationResource {
         if (dataCenterInfo instanceof UniqueIdentifier) {
             String dataCenterInfoId = ((UniqueIdentifier) dataCenterInfo).getId();
             if (isBlank(dataCenterInfoId)) {
+                //硬编码
                 boolean experimental = "true".equalsIgnoreCase(serverConfig.getExperimental("registration.validation.dataCenterInfoId"));
                 if (experimental) {
                     String entity = "DataCenterInfo of type " + dataCenterInfo.getClass() + " must contain a valid id";
+                    //硬编码
                     return Response.status(400).entity(entity).build();
                 } else if (dataCenterInfo instanceof AmazonInfo) {
                     AmazonInfo amazonInfo = (AmazonInfo) dataCenterInfo;
@@ -182,7 +193,10 @@ public class ApplicationResource {
             }
         }
 
+        //这边就是注册的核心代码了，将服务实例往注册表去进行注册，实际上会调用父类AbstractInstanceRegistry的register()方法中去了
+        //传入的参数第一个是InstanceInfo信息，
         registry.register(info, "true".equals(isReplication));
+        //硬编码
         return Response.status(204).build();  // 204 to be backwards compatible
     }
 
