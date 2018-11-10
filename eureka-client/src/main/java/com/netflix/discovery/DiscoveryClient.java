@@ -422,7 +422,8 @@ public class DiscoveryClient implements EurekaClient {
         }
 
         //如果是eureka集群的时候我们是要将fetchRegistry设置为true，registerWithEureka也是要设置为true的
-        //fetchRegistry就是拉取注册表的意思,第一次拉取注册的时候报错
+        //fetchRegistry就是拉取注册表的意思，//
+        // 拉取注册表的时候报错则fetchRegistry(false)返回false，进入拉取备用注册表逻辑
         if (clientConfig.shouldFetchRegistry() && !fetchRegistry(false)) {
             //如果拉取注册表失败了（eureka server全部挂了）启用备用的注册表
             fetchRegistryFromBackup();
@@ -931,7 +932,7 @@ public class DiscoveryClient implements EurekaClient {
      * This method tries to get only deltas after the first fetch unless there
      * is an issue in reconciling eureka server and client registry information.
      *
-     * 只有第一次拉取或者deltas设置为disabled的时候拉取全量注册表，否则拉取增量注册表
+     * 只有第一次拉取或者增量拉取设置为disabled的时候拉取全量注册表，否则拉取增量注册表
      * </p>
      *
      * @param forceFullRegistryFetch Forces a full registry fetch.
@@ -944,8 +945,12 @@ public class DiscoveryClient implements EurekaClient {
         try {
             // If the delta is disabled or if it is the first time, get all
             // applications
+            //先获取本地的缓存，Applications就是表示所有服务的信息，这个也是判断是否是第一次拉取的依据，
+            //我们看到缓存是在AtomicReference<Applications> localRegionApps的对象实际取到的，
             Applications applications = getApplications();
 
+            //这边的if条件满足的话就进入全量抓取的逻辑，因为第一次注册表applications肯定是null，也就是代表第一次拉取，
+            //所以，很自然的就进入了这个if的断言
             if (clientConfig.shouldDisableDelta()
                     || (!Strings.isNullOrEmpty(clientConfig.getRegistryRefreshSingleVipAddress()))
                     || forceFullRegistryFetch
@@ -960,8 +965,10 @@ public class DiscoveryClient implements EurekaClient {
                 logger.info("Registered Applications size is zero : {}",
                         (applications.getRegisteredApplications().size() == 0));
                 logger.info("Application version is -1: {}", (applications.getVersion() == -1));
+                //很明显嘛，这边就是全量拉取的代码方法
                 getAndStoreFullRegistry();
             } else {
+                //增量拉取的逻辑
                 getAndUpdateDelta(applications);
             }
             applications.setAppsHashCode(applications.getReconcileHashCode());
@@ -1046,6 +1053,8 @@ public class DiscoveryClient implements EurekaClient {
 
         Applications apps = null;
         EurekaHttpResponse<Applications> httpResponse = clientConfig.getRegistryRefreshSingleVipAddress() == null
+                //来了，就是这个方法getApplications方法就是全量拉取注册表的方法，
+                // 这边还是跟到AbstractJersey2EurekaHttpClient方法的实现方法中
                 ? eurekaTransport.queryClient.getApplications(remoteRegionsRef.get())
                 : eurekaTransport.queryClient.getVip(clientConfig.getRegistryRefreshSingleVipAddress(), remoteRegionsRef.get());
         if (httpResponse.getStatusCode() == Status.OK.getStatusCode()) {
@@ -1066,6 +1075,8 @@ public class DiscoveryClient implements EurekaClient {
     /**
      * Get the delta registry information from the eureka server and update it locally.
      * When applying the delta, the following flow is observed:
+     *
+     * 获取从eureka server服务器中的增量注册信息并且在本地进行更新，当我们监听到增量的变化时，需要完成下面的步骤：
      *
      * if (update generation have not advanced (due to another thread))
      *   atomically try to: update application with the delta and get reconcileHashCode

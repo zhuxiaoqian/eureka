@@ -453,6 +453,7 @@ public interface EurekaClientConfig {
 
     /**
      * Indicates whether this client should fetch eureka registry information from eureka server.
+     * 标记是否eureka client是否应该从eureka server拉取注册表
      *
      * @return {@code true} if registry information has to be fetched, {@code false} otherwise.
      */
