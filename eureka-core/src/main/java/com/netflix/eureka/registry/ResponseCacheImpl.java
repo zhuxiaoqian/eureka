@@ -236,6 +236,7 @@ public class ResponseCacheImpl implements ResponseCache {
 
     /**
      * Invalidate the cache of a particular application.
+     * 去除一些特定的程序缓存
      *
      * @param appName the application name of the application.
      */
@@ -243,6 +244,7 @@ public class ResponseCacheImpl implements ResponseCache {
     public void invalidate(String appName, @Nullable String vipAddress, @Nullable String secureVipAddress) {
         for (Key.KeyType type : Key.KeyType.values()) {
             for (Version v : Version.values()) {
+                //进入这个方法
                 invalidate(
                         new Key(Key.EntityType.Application, appName, type, v, EurekaAccept.full),
                         new Key(Key.EntityType.Application, appName, type, v, EurekaAccept.compact),
@@ -263,6 +265,7 @@ public class ResponseCacheImpl implements ResponseCache {
 
     /**
      * Invalidate the cache information given the list of keys.
+     * 将给定的key集合的缓存失效
      *
      * @param keys the list of keys for which the cache information needs to be invalidated.
      */
@@ -271,6 +274,8 @@ public class ResponseCacheImpl implements ResponseCache {
             logger.debug("Invalidating the response cache key : {} {} {} {}, {}",
                     key.getEntityType(), key.getName(), key.getVersion(), key.getType(), key.getEurekaAccept());
 
+            //有新的服务上线，下线旧的实例，故障等都会刷新readWriteCacheMap，
+            //如果一个服务比如说Application0的服务新上线一个服务实例，就会调用readWriteCacheMap.invalidate(key)将之前的缓存失效掉
             readWriteCacheMap.invalidate(key);
             Collection<Key> keysWithRegions = regionSpecificKeys.get(key);
             if (null != keysWithRegions && !keysWithRegions.isEmpty()) {
