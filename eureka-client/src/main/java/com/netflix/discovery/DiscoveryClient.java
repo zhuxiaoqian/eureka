@@ -1091,21 +1091,27 @@ public class DiscoveryClient implements EurekaClient {
         long currentUpdateGeneration = fetchRegistryGeneration.get();
 
         Applications delta = null;
+        //走这个 eurekaTransport.queryClient.getDelta方法
         EurekaHttpResponse<Applications> httpResponse = eurekaTransport.queryClient.getDelta(remoteRegionsRef.get());
         if (httpResponse.getStatusCode() == Status.OK.getStatusCode()) {
             delta = httpResponse.getEntity();
         }
 
+        //如果为null，
         if (delta == null) {
             logger.warn("The server does not allow the delta revision to be applied because it is not safe. "
                     + "Hence got the full registry.");
+            //那么就会拿全量的注册表
             getAndStoreFullRegistry();
         } else if (fetchRegistryGeneration.compareAndSet(currentUpdateGeneration, currentUpdateGeneration + 1)) {
             logger.debug("Got delta update with apps hashcode {}", delta.getAppsHashCode());
             String reconcileHashCode = "";
             if (fetchRegistryUpdateLock.tryLock()) {
                 try {
+                    //更新增量的注册表到本地的缓存中
                     updateDelta(delta);
+                    //拿到本地的application的hashcode，因为上一步完成了本地的applications和增量的注册表的合并
+                    //所以这一步的hashcode值是对合并后全量的applications进行hash
                     reconcileHashCode = getReconcileHashCode(applications);
                 } finally {
                     fetchRegistryUpdateLock.unlock();
@@ -1113,6 +1119,8 @@ public class DiscoveryClient implements EurekaClient {
             } else {
                 logger.warn("Cannot acquire update lock, aborting getAndUpdateDelta");
             }
+
+            //
             // There is a diff in number of instances for some reason
             if (!reconcileHashCode.equals(delta.getAppsHashCode()) || clientConfig.shouldLogDeltaDiff()) {
                 reconcileAndLogDifference(delta, reconcileHashCode);  // this makes a remoteCall
@@ -1140,10 +1148,14 @@ public class DiscoveryClient implements EurekaClient {
      * Reconcile the eureka server and client registry information and logs the differences if any.
      * When reconciling, the following flow is observed:
      *
+     * 协调eureka server和客户端注册表信息并记录差异，观察如下的流程：
+     *
      * make a remote call to the server for the full registry
      * calculate and log differences
      * if (update generation have not advanced (due to another thread))
      *   atomically set the registry to the new registry
+     *
+     *  这边的意思就是拉取远程的所有全量注册表和本地合并后的全量注册表进行比较
      * fi
      *
      * @param delta
@@ -1163,6 +1175,7 @@ public class DiscoveryClient implements EurekaClient {
 
         long currentUpdateGeneration = fetchRegistryGeneration.get();
 
+        //这边获取远程的所有的服务实例的信息
         EurekaHttpResponse<Applications> httpResponse = clientConfig.getRegistryRefreshSingleVipAddress() == null
                 ? eurekaTransport.queryClient.getApplications(remoteRegionsRef.get())
                 : eurekaTransport.queryClient.getVip(clientConfig.getRegistryRefreshSingleVipAddress(), remoteRegionsRef.get());
@@ -1175,6 +1188,7 @@ public class DiscoveryClient implements EurekaClient {
 
         if (logger.isDebugEnabled()) {
             try {
+                //比较当前本地合并后的实例集合和从远程拉取的全量实例集合进行对比
                 Map<String, List<String>> reconcileDiffMap = getApplications().getReconcileMapDiff(serverApps);
                 StringBuilder reconcileBuilder = new StringBuilder("");
                 for (Map.Entry<String, List<String>> mapEntry : reconcileDiffMap.entrySet()) {
@@ -1184,6 +1198,8 @@ public class DiscoveryClient implements EurekaClient {
                     }
                     reconcileBuilder.append('\n');
                 }
+
+                //得到对比后的一个string
                 String reconcileString = reconcileBuilder.toString();
                 logger.debug("The reconcile string is {}", reconcileString);
             } catch (Throwable e) {
@@ -1207,6 +1223,8 @@ public class DiscoveryClient implements EurekaClient {
      * Updates the delta information fetches from the eureka server into the
      * local cache.
      *
+     * 更新增量的从eureka server抓取的数据到本地的缓存中
+     *
      * @param delta
      *            the delta information received from eureka server in the last
      *            poll cycle.
@@ -1215,6 +1233,7 @@ public class DiscoveryClient implements EurekaClient {
         int deltaCount = 0;
         for (Application app : delta.getRegisteredApplications()) {
             for (InstanceInfo instance : app.getInstances()) {
+                //拿到本地的所有的缓存
                 Applications applications = getApplications();
                 String instanceRegion = instanceRegionChecker.getInstanceRegion(instance);
                 if (!instanceRegionChecker.isLocalRegion(instanceRegion)) {
@@ -1273,6 +1292,7 @@ public class DiscoveryClient implements EurekaClient {
             // registry cache refresh timer
             int registryFetchIntervalSeconds = clientConfig.getRegistryFetchIntervalSeconds();
             int expBackOffBound = clientConfig.getCacheRefreshExecutorExponentialBackOffBound();
+            //这个定时job执行的就是缓存刷新的功能，也就是增量抓取的过程
             scheduler.schedule(
                     new TimedSupervisorTask(
                             "cacheRefresh",
@@ -1467,9 +1487,12 @@ public class DiscoveryClient implements EurekaClient {
     /**
      * The task that fetches the registry information at specified intervals.
      *
+     * 以指定的时间间隔去抓取注册列表
+     *
      */
     class CacheRefreshThread implements Runnable {
         public void run() {
+            //这个肯定就是增量抓取注册列表的逻辑了
             refreshRegistry();
         }
     }
@@ -1503,6 +1526,7 @@ public class DiscoveryClient implements EurekaClient {
                 }
             }
 
+            //这边就是增量抓取的方法
             boolean success = fetchRegistry(remoteRegionsModified);
             if (success) {
                 registrySize = localRegionApps.get().size();

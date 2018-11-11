@@ -127,8 +127,11 @@ public class ResponseCacheImpl implements ResponseCache {
         this.registry = registry;
 
         long responseCacheUpdateIntervalMs = serverConfig.getResponseCacheUpdateIntervalMs();
+        //LoadingCache<Key, Value>
         this.readWriteCacheMap =
                 CacheBuilder.newBuilder().initialCapacity(1000)
+                        //这边有主动过期，就会定时过期，默认时间是180s自动过期，
+                        // serverConfig.getResponseCacheAutoExpirationInSeconds()这个值默认是180s
                         .expireAfterWrite(serverConfig.getResponseCacheAutoExpirationInSeconds(), TimeUnit.SECONDS)
                         .removalListener(new RemovalListener<Key, Value>() {
                             @Override
@@ -140,6 +143,7 @@ public class ResponseCacheImpl implements ResponseCache {
                                 }
                             }
                         })
+                        //核心的实现，如果读写缓存没有的话，会从eureka server注册表中读取
                         .build(new CacheLoader<Key, Value>() {
                             @Override
                             public Value load(Key key) throws Exception {
@@ -147,13 +151,17 @@ public class ResponseCacheImpl implements ResponseCache {
                                     Key cloneWithNoRegions = key.cloneWithoutRegions();
                                     regionSpecificKeys.put(cloneWithNoRegions, key);
                                 }
+                                //会从注册表中去读取
                                 Value value = generatePayload(key);
                                 return value;
                             }
                         });
 
+        //这边的定时job就会被动过期，默认是30s，具体执行的就是`getCacheUpdateTask`任务
         if (shouldUseReadOnlyResponseCache) {
+            //30s执行的定时的定时job是getCacheUpdateTask
             timer.schedule(getCacheUpdateTask(),
+                    //当前时间/30s * 30s+30s，就是当前时间后每隔30s
                     new Date(((System.currentTimeMillis() / responseCacheUpdateIntervalMs) * responseCacheUpdateIntervalMs)
                             + responseCacheUpdateIntervalMs),
                     responseCacheUpdateIntervalMs);
@@ -180,6 +188,8 @@ public class ResponseCacheImpl implements ResponseCache {
                         CurrentRequestVersion.set(key.getVersion());
                         Value cacheValue = readWriteCacheMap.get(key);
                         Value currentCacheValue = readOnlyCacheMap.get(key);
+                        //对readOnlyCacheMap和readWriteCacheMap中的数据进行一个比对，
+                        // 如果两块数据是不一致的，那么就将readWriteCacheMap中的数据放到readOnlyCacheMap中来
                         if (cacheValue != currentCacheValue) {
                             readOnlyCacheMap.put(key, cacheValue);
                         }
@@ -193,22 +203,27 @@ public class ResponseCacheImpl implements ResponseCache {
 
     /**
      * Get the cached information about applications.
+     * 获取应用的缓存信息
      *
      * <p>
      * If the cached information is not available it is generated on the first
      * request. After the first request, the information is then updated
      * periodically by a background thread.
+     *
+     * 如果缓存信息不可用，一般都会在第一次请求生成。在第一次请求之后，信息在后台稳定的更新
      * </p>
      *
      * @param key the key for which the cached information needs to be obtained.
      * @return payload which contains information about the applications.
      */
     public String get(final Key key) {
+        //shouldUseReadOnlyResponseCache的默认值是true，使用只读缓存
         return get(key, shouldUseReadOnlyResponseCache);
     }
 
     @VisibleForTesting
     String get(final Key key, boolean useReadOnlyCache) {
+        //走到这边，核心的部分就是getValue
         Value payload = getValue(key, useReadOnlyCache);
         if (payload == null || payload.getPayload().equals(EMPTY_PAYLOAD)) {
             return null;
@@ -350,10 +365,12 @@ public class ResponseCacheImpl implements ResponseCache {
         Value payload = null;
         try {
             if (useReadOnlyCache) {
+                //具体的实现就是这一块，分为二个map，一个是只读缓存，一个读写缓存，先是只读缓存中去查看
                 final Value currentPayload = readOnlyCacheMap.get(key);
                 if (currentPayload != null) {
                     payload = currentPayload;
                 } else {
+                    //只读缓存不存在那么就去readWriteCacheMap（读写缓存）中去获取，再将读取到的内容放到只读缓存中
                     payload = readWriteCacheMap.get(key);
                     readOnlyCacheMap.put(key, payload);
                 }
@@ -370,6 +387,7 @@ public class ResponseCacheImpl implements ResponseCache {
      * Generate pay load with both JSON and XML formats for all applications.
      */
     private String getPayLoad(Key key, Applications apps) {
+        //这边反序列化为String
         EncoderWrapper encoderWrapper = serverCodecs.getEncoder(key.getType(), key.getEurekaAccept());
         String result;
         try {
@@ -403,6 +421,8 @@ public class ResponseCacheImpl implements ResponseCache {
 
     /*
      * Generate pay load for the given key.
+     *
+     * 通过指定的key得到指定的value
      */
     private Value generatePayload(Key key) {
         Stopwatch tracer = null;
@@ -412,19 +432,26 @@ public class ResponseCacheImpl implements ResponseCache {
                 case Application:
                     boolean isRemoteRegionRequested = key.hasRegions();
 
+                    //如果要读所有的配置
                     if (ALL_APPS.equals(key.getName())) {
                         if (isRemoteRegionRequested) {
                             tracer = serializeAllAppsWithRemoteRegionTimer.start();
                             payload = getPayLoad(key, registry.getApplicationsFromMultipleRegions(key.getRegions()));
                         } else {
+                            //从注册表中拿所有的applications
                             tracer = serializeAllAppsTimer.start();
+                            //getPayLoad方法是反序列化过程
                             payload = getPayLoad(key, registry.getApplications());
                         }
-                    } else if (ALL_APPS_DELTA.equals(key.getName())) {
+                    }
+
+                    //增量走这个逻辑
+                    else if (ALL_APPS_DELTA.equals(key.getName())) {
                         if (isRemoteRegionRequested) {
                             tracer = serializeDeltaAppsWithRemoteRegionTimer.start();
                             versionDeltaWithRegions.incrementAndGet();
                             versionDeltaWithRegionsLegacy.incrementAndGet();
+                            //registry.getApplicationDeltasFromMultipleRegions获取增量的注册表，从上次拉取之后变化的注册表
                             payload = getPayLoad(key,
                                     registry.getApplicationDeltasFromMultipleRegions(key.getRegions()));
                         } else {

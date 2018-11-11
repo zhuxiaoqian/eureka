@@ -974,7 +974,10 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         apps.setVersion(responseCache.getVersionDeltaWithRegions().get());
         Map<String, Application> applicationInstancesMap = new HashMap<String, Application>();
         try {
+            //加了一个写锁
             write.lock();
+            //recentlyChangedQueue表示最近有变化的队列queue，服务实例注册，下线，状态变更的时候都会放到这个队列中去，
+            //recentlyChangedQueue拿到的是最近三分钟内有变化的服务实例的注册表，增量注册表，因为读写缓存180s中失效
             Iterator<RecentlyChangedItem> iter = this.recentlyChangedQueue.iterator();
             logger.debug("The number of elements in the delta queue is :" + this.recentlyChangedQueue.size());
             while (iter.hasNext()) {
@@ -1347,6 +1350,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             public void run() {
                 Iterator<RecentlyChangedItem> it = recentlyChangedQueue.iterator();
                 while (it.hasNext()) {
+                    //如果上次更新时间小于现在系统时间减去3分钟，则将上次3分钟之前变化的实例信息给清理掉
                     if (it.next().getLastUpdateTime() <
                             System.currentTimeMillis() - serverConfig.getRetentionTimeInMSInDeltaQueue()) {
                         it.remove();

@@ -96,6 +96,7 @@ public class ApplicationsResource {
 
     /**
      * Get information about all {@link com.netflix.discovery.shared.Applications}.
+     * 获取所有的实例信息
      *
      * @param version the version of the request.
      * @param acceptHeader the accept header to indicate whether to serve JSON or XML data.
@@ -153,6 +154,8 @@ public class ApplicationsResource {
                     .header(HEADER_CONTENT_TYPE, returnMediaType)
                     .build();
         } else {
+            //最核心的是在这里，responseCache就是eureka server端的缓存机制，
+            // 我们去查看看responseCache的具体实现，reponseCacheImpl
             response = Response.ok(responseCache.get(cacheKey))
                     .build();
         }
@@ -161,6 +164,8 @@ public class ApplicationsResource {
 
     /**
      * Get information about all delta changes in {@link com.netflix.discovery.shared.Applications}.
+     *
+     * 得到所有增量变化
      *
      * <p>
      * The delta changes represent the registry information change for a period
@@ -172,11 +177,16 @@ public class ApplicationsResource {
      * delta will be much more efficient than getting the complete registry.
      * </p>
      *
+     * 一段时间的增量变更默认配置的是180s（EurekaServerConfig#getRetentionTimeInMSInDeltaQueue()）。变更包括注册，下线，状态变更和失效。
+     * 通常注册表很少变更，因此获取增量注册表更加的有效率。
+     *
      * <p>
      * Since the delta information is cached over a period of time, the requests
      * may return the same data multiple times within the window configured by
      * {@link EurekaServerConfig#getRetentionTimeInMSInDeltaQueue()}.The clients
      * are expected to handle this duplicate information.
+     *
+     * 因为增量信息被缓存一段时间，所以请求在配置的180s内多次返回相同的数据。客户端应该解决这种重复发送。
      * <p>
      *
      * @param version the version of the request.
@@ -221,6 +231,7 @@ public class ApplicationsResource {
             returnMediaType = MediaType.APPLICATION_XML;
         }
 
+        //这边走的也是ALL_APPS_DELTA这个key
         Key cacheKey = new Key(Key.EntityType.Application,
                 ResponseCacheImpl.ALL_APPS_DELTA,
                 keyType, CurrentRequestVersion.get(), EurekaAccept.fromString(eurekaAccept), regions
