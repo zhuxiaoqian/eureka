@@ -58,8 +58,11 @@ public class Lease<T> {
      * Renew the lease, use renewal duration if it was specified by the
      * associated {@link T} during registration, otherwise default duration is
      * {@link #DEFAULT_DURATION_IN_SECS}.
+     *
+     * 更新续约，续约间隔如果注册的时候制定了就使用指定的时间间隔，否则使用默认的时间间隔，即90s
      */
     public void renew() {
+        //续约其实就是更新一下时间戳，duration默认是90s
         lastUpdateTimestamp = System.currentTimeMillis() + duration;
 
     }

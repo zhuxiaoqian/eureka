@@ -227,6 +227,7 @@ public class LeaseInfo {
 
     /**
      * Returns client specified setting for renew interval.
+     * 客户端指定的续约间隔设置，默认是30s
      *
      * @return time in milliseconds since epoch.
      */

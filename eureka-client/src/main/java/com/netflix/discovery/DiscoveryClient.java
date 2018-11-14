@@ -838,10 +838,12 @@ public class DiscoveryClient implements EurekaClient {
 
     /**
      * Renew with the eureka service by making the appropriate REST call
+     * 通过远程更新使得eureka服务更新
      */
     boolean renew() {
         EurekaHttpResponse<InstanceInfo> httpResponse;
         try {
+            //这边发送一个heartBeat动作
             httpResponse = eurekaTransport.registrationClient.sendHeartBeat(instanceInfo.getAppName(), instanceInfo.getId(), instanceInfo, null);
             logger.debug("{} - Heartbeat status: {}", PREFIX + appPathIdentifier, httpResponse.getStatusCode());
             if (httpResponse.getStatusCode() == 404) {
@@ -1317,9 +1319,11 @@ public class DiscoveryClient implements EurekaClient {
                             "heartbeat",
                             scheduler,
                             heartbeatExecutor,
+                            //eureka client续约的时间间隔
                             renewalIntervalInSecs,
                             TimeUnit.SECONDS,
                             expBackOffBound,
+                            //心跳线程，
                             new HeartbeatThread()
                     ),
                     renewalIntervalInSecs, TimeUnit.SECONDS);
@@ -1447,10 +1451,13 @@ public class DiscoveryClient implements EurekaClient {
 
     /**
      * The heartbeat task that renews the lease in the given intervals.
+     * 以给定时间更新心跳任务
+     *
      */
     private class HeartbeatThread implements Runnable {
 
         public void run() {
+            //肯定就是这个renew方法执行的，跟进去看看
             if (renew()) {
                 lastSuccessfulHeartbeatTimestamp = System.currentTimeMillis();
             }

@@ -129,9 +129,11 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
 
     @Override
     public EurekaHttpResponse<InstanceInfo> sendHeartBeat(String appName, String id, InstanceInfo info, InstanceStatus overriddenStatus) {
+        //发送的一个url请求，类似与：，http://localhost:8080/v2/apps/ServiceA/i-000000-1，appName就是服务名
         String urlPath = "apps/" + appName + '/' + id;
         Response response = null;
         try {
+            //发送心跳传递二个字段，状态和时间戳，感觉很合理
             WebTarget webResource = jerseyClient.target(serviceUrl)
                     .path(urlPath)
                     .queryParam("status", info.getStatus().toString())
@@ -143,6 +145,7 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
             addExtraProperties(requestBuilder);
             addExtraHeaders(requestBuilder);
             requestBuilder.accept(MediaType.APPLICATION_JSON_TYPE);
+            //走的是put形式的请求
             response = requestBuilder.put(Entity.entity("{}", MediaType.APPLICATION_JSON_TYPE)); // Jersey2 refuses to handle PUT with no body
             EurekaHttpResponseBuilder<InstanceInfo> eurekaResponseBuilder = anEurekaHttpResponse(response.getStatus(), InstanceInfo.class).headers(headersOf(response));
             if (response.hasEntity()) {
