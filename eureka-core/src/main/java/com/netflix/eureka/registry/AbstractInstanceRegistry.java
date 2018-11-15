@@ -293,10 +293,13 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
     /**
      * Cancels the registration of an instance.
+     * 取消实例注册
      *
      * <p>
      * This is normally invoked by a client when it shuts down informing the
      * server to remove the instance from traffic.
+     *
+     * 下线时调用当客户端下线
      * </p>
      *
      * @param appName the application name of the application.
@@ -307,6 +310,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      */
     @Override
     public boolean cancel(String appName, String id, boolean isReplication) {
+        //调用这个internalCancel方法
         return internalCancel(appName, id, isReplication);
     }
 
@@ -314,6 +318,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      * {@link #cancel(String, String, boolean)} method is overridden by {@link PeerAwareInstanceRegistry}, so each
      * cancel request is replicated to the peers. This is however not desired for expires which would be counted
      * in the remote peers as valid cancellations, so self preservation mode would not kick-in.
+     *
+     * 重写PeerAwareInstanceRegistry#cancel(String, String, boolean),
      */
     protected boolean internalCancel(String appName, String id, boolean isReplication) {
         try {
@@ -321,12 +327,17 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             CANCEL.increment(isReplication);
             Map<String, Lease<InstanceInfo>> gMap = registry.get(appName);
             Lease<InstanceInfo> leaseToCancel = null;
+
+            //将自己内存的map数据结构的注册表中将下线的服务实例给删除掉
             if (gMap != null) {
                 leaseToCancel = gMap.remove(id);
             }
+
+            //将服务实例放进最近下线的队列中去（recentCanceledQueue)
             synchronized (recentCanceledQueue) {
                 recentCanceledQueue.add(new Pair<Long, String>(System.currentTimeMillis(), appName + "(" + id + ")"));
             }
+
             InstanceStatus instanceStatus = overriddenInstanceStatusMap.remove(id);
             if (instanceStatus != null) {
                 logger.debug("Removed instance id {} from the overridden map which has value {}", id, instanceStatus.name());
@@ -336,17 +347,23 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 logger.warn("DS: Registry: cancel failed because Lease is not registered for: {}/{}", appName, id);
                 return false;
             } else {
+                //最核心的代码还是这块，调用的这个cancel方法,这个方法就是更新一个时间戳
                 leaseToCancel.cancel();
                 InstanceInfo instanceInfo = leaseToCancel.getHolder();
                 String vip = null;
                 String svip = null;
                 if (instanceInfo != null) {
+                    //将下线的服务实例放到最新变化的队列中去
                     instanceInfo.setActionType(ActionType.DELETED);
                     recentlyChangedQueue.add(new RecentlyChangedItem(leaseToCancel));
                     instanceInfo.setLastUpdatedTimestamp();
                     vip = instanceInfo.getVIPAddress();
                     svip = instanceInfo.getSecureVipAddress();
+                    //服务的注册，下线，故障摘除，都会代表这这个服务实例的变化了，都会将自己放入到最近改变的队列中去
+                    //这个最近改变的队列，只会保留最近三分钟的服务实例
+                    //所以说eureka client拉取增量注册表的时候，其实就是拉取最近三分钟有变化的服务实例的注册表信息
                 }
+                //过期掉缓存
                 invalidateCache(appName, vip, svip);
                 logger.info("Cancelled instance {}/{} (replication={})", appName, id, isReplication);
                 return true;

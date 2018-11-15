@@ -191,6 +191,10 @@ public class InstanceResource {
      * Removes status override for an instance, set with
      * {@link #statusUpdate(String, String, String)}.
      *
+     * 删除实例状态覆盖，通过statusUpdate方法设置实例状态
+     *
+     *
+     *
      * @param isReplication
      *            a header parameter containing information whether this is
      *            replicated from other nodes.
@@ -270,6 +274,7 @@ public class InstanceResource {
 
     /**
      * Handles cancellation of leases for this particular instance.
+     * 取消服务租约
      *
      * @param isReplication
      *            a header parameter containing information whether this is
@@ -280,6 +285,7 @@ public class InstanceResource {
     @DELETE
     public Response cancelLease(
             @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication) {
+        //这个方法就是我们想要的
         boolean isSuccess = registry.cancel(app.getName(), id,
                 "true".equals(isReplication));
 

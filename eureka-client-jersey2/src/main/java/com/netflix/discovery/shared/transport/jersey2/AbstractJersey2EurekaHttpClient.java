@@ -109,12 +109,14 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
 
     @Override
     public EurekaHttpResponse<Void> cancel(String appName, String id) {
+        //url类似与http://localhost:8080/v2/apps/ServiceA/i-00000-1，服务名称是ServiceA
         String urlPath = "apps/" + appName + '/' + id;
         Response response = null;
         try {
             Builder resourceBuilder = jerseyClient.target(serviceUrl).path(urlPath).request();
             addExtraProperties(resourceBuilder);
             addExtraHeaders(resourceBuilder);
+            //delete请求
             response = resourceBuilder.delete();
             return anEurekaHttpResponse(response.getStatus()).headers(headersOf(response)).build();
         } finally {

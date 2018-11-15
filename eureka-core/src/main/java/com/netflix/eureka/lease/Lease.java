@@ -71,6 +71,7 @@ public class Lease<T> {
      * Cancels the lease by updating the eviction time.
      */
     public void cancel() {
+        //里面保持了一个evictionTimestamp的时间戳，
         if (evictionTimestamp <= 0) {
             evictionTimestamp = System.currentTimeMillis();
         }

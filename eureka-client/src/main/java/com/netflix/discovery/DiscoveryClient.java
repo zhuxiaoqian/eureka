@@ -881,6 +881,8 @@ public class DiscoveryClient implements EurekaClient {
     /**
      * Shuts down Eureka Client. Also sends a deregistration request to the
      * eureka server.
+     *
+     * 关闭eureka client，并且向eureka server发送注销请求
      */
     @PreDestroy
     @Override
@@ -892,18 +894,23 @@ public class DiscoveryClient implements EurekaClient {
                 applicationInfoManager.unregisterStatusChangeListener(statusChangeListener.getId());
             }
 
+            //把一些线程池都shutdown掉了
             cancelScheduledTasks();
 
             // If APPINFO was registered
             if (applicationInfoManager != null && clientConfig.shouldRegisterWithEureka()) {
+                //将服务实例设置为down
                 applicationInfoManager.setInstanceStatus(InstanceStatus.DOWN);
+                //调用这个unregister方法去取消注册，最核心的所在
                 unregister();
             }
 
+            //下面就是释放资源
             if (eurekaTransport != null) {
                 eurekaTransport.shutdown();
             }
 
+            //把一些监听器关闭
             heartbeatStalenessMonitor.shutdown();
             registryStalenessMonitor.shutdown();
 
@@ -913,12 +920,15 @@ public class DiscoveryClient implements EurekaClient {
 
     /**
      * unregister w/ the eureka service.
+     * 取消注册
      */
     void unregister() {
         // It can be null if shouldRegisterWithEureka == false
+        //如果shouldRegisterWithEureka == false则eurekaTransport为null，所以这边都是不为null的
         if(eurekaTransport != null && eurekaTransport.registrationClient != null) {
             try {
                 logger.info("Unregistering ...");
+                //很明显了就是这个cancel方法，进行下线
                 EurekaHttpResponse<Void> httpResponse = eurekaTransport.registrationClient.cancel(instanceInfo.getAppName(), instanceInfo.getId());
                 logger.info(PREFIX + appPathIdentifier + " - deregister  status: " + httpResponse.getStatusCode());
             } catch (Exception e) {
@@ -1369,12 +1379,15 @@ public class DiscoveryClient implements EurekaClient {
 
     private void cancelScheduledTasks() {
         if (instanceInfoReplicator != null) {
+            //注册服务的线程
             instanceInfoReplicator.stop();
         }
         if (heartbeatExecutor != null) {
+            //发送心跳的线程
             heartbeatExecutor.shutdownNow();
         }
         if (cacheRefreshExecutor != null) {
+            //缓存更新的线程
             cacheRefreshExecutor.shutdownNow();
         }
         if (scheduler != null) {
