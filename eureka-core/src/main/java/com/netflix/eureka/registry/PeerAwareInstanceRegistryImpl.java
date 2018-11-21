@@ -254,6 +254,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     @Override
     public void openForTraffic(ApplicationInfoManager applicationInfoManager, int count) {
         // Renewals happen every 30 seconds and for a minute it should be a factor of 2.
+        //每30s续约一场，所以期望每分钟心跳的次数就是count*2
         this.expectedNumberOfRenewsPerMin = count * 2;
         this.numberOfRenewsPerMinThreshold =
                 (int) (this.expectedNumberOfRenewsPerMin * serverConfig.getRenewalPercentThreshold());
@@ -271,6 +272,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
         }
         logger.info("Changing status to UP");
         applicationInfoManager.setInstanceStatus(InstanceStatus.UP);
+        //续约的主要逻辑在这边
         super.postInit();
     }
 
@@ -500,10 +502,15 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
 
     @Override
     public boolean isLeaseExpirationEnabled() {
+        ////默认是true，如果你改为false，关闭自我保护机制的话，对这个方法永远会返回true，随时都可以清理故障的服务实例
         if (!isSelfPreservationModeEnabled()) {
             // The self preservation mode is disabled, hence allowing the instances to expire.
             return true;
         }
+
+        //这一行是触发自我保护机制的核心代码，getNumOfRenewsInLastMin的值是上一秒中实际的心跳次数，
+        // numberOfRenewsPerMinThreshold看到注册，下线的时候都设置为期望心跳*0.85,getNumOfRenewsInLastMin()如果小于期望心跳的0。85，
+        //则进入保护模式
         return numberOfRenewsPerMinThreshold > 0 && getNumOfRenewsInLastMin() > numberOfRenewsPerMinThreshold;
     }
 

@@ -235,6 +235,8 @@ public class EurekaBootStrap implements ServletContextListener {
         // Copy registry from neighboring eureka node
         //从临近的eureka node中复制注册表
         int registryCount = registry.syncUp();
+
+        //这边就是感知故障节点并且摘除服务实例的方法
         registry.openForTraffic(applicationInfoManager, registryCount);
 
         // Register all monitoring statistics.

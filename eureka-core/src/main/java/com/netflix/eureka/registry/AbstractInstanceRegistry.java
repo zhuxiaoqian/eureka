@@ -615,6 +615,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     /**
      * Evicts everything in the instance registry that has expired, if expiry is enabled.
      *
+     * 如果过期策略设置了，那么过期的就被清理了
+     *
      * @see com.netflix.eureka.lease.LeaseManager#evict()
      */
     @Override
@@ -625,6 +627,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     public void evict(long additionalLeaseMs) {
         logger.debug("Running the evict task");
 
+        //是否允许主动删除掉故障的服务实例 -> 这边跟自我保护机制有关，
+        // 关闭了自我保护模式，则!isLeaseExpirationEnabled()为false，表示随时清除服务实例
         if (!isLeaseExpirationEnabled()) {
             logger.debug("DS: lease expiration is currently disabled.");
             return;
@@ -633,12 +637,18 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         // We collect first all expired items, to evict them in random order. For large eviction sets,
         // if we do not that, we might wipe out whole apps before self preservation kicks in. By randomizing it,
         // the impact should be evenly distributed across all applications.
+        //我们收集所有的过期的项目，随机的顺序去过期它。因为对于大规模的过期，如果不这么做的化，可以在自我保护之前就清除了所有的应用实例。通过随机化可以减小风险
         List<Lease<InstanceInfo>> expiredLeases = new ArrayList<>();
         for (Entry<String, Map<String, Lease<InstanceInfo>>> groupEntry : registry.entrySet()) {
             Map<String, Lease<InstanceInfo>> leaseMap = groupEntry.getValue();
             if (leaseMap != null) {
                 for (Entry<String, Lease<InstanceInfo>> leaseEntry : leaseMap.entrySet()) {
+                    //遍历得到每个服务注册信息的租约
                     Lease<InstanceInfo> lease = leaseEntry.getValue();
+                    //调用isExpired方法，判断当前服务实例的租约是否过期了，是否失效了，如果服务实例失效了，那么实例就是失效了，
+                    //lease.isExpired的逻辑就是判断当前的时间，additionalLeaseMs这个时间就是我们上面算的时间，如果additionalLeaseMs这个时间过长，那么就被过期了
+
+                    ////对每个服务实例的租约判断一下，如果一个服务实例上一次的心跳时间到现在为止超过了90*2=180s的话，才会认为这个服务实例过期了，故障了
                     if (lease.isExpired(additionalLeaseMs) && lease.getHolder() != null) {
                         expiredLeases.add(lease);
                     }
@@ -648,25 +658,38 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
         // To compensate for GC pauses or drifting local time, we need to use current registry size as a base for
         // triggering self-preservation. Without that we would wipe out full registry.
+
+        //不能一次性摘除过多的服务实例，假设现在一共是20个服务实例，现在有6个服务实例不可用，一次性可以摘除的服务实例，
+        //下次定时job还会过来，根据算法再去摘除一批服务实例，直到将所有故障的服务实例都摘除掉
+
+        //比如说现在一共20个服务
         int registrySize = (int) getLocalRegistrySize();
+        //20*0.85=17
         int registrySizeThreshold = (int) (registrySize * serverConfig.getRenewalPercentThreshold());
+        //evictionLimit= 20 -17 =3 ,所以最多只能摘除3个服务实例
         int evictionLimit = registrySize - registrySizeThreshold;
 
+        //取个最大值，也就是说最多只能摘除3个实例
         int toEvict = Math.min(expiredLeases.size(), evictionLimit);
         if (toEvict > 0) {
             logger.info("Evicting {} items (expired={}, evictionLimit={})", toEvict, expiredLeases.size(), evictionLimit);
 
+            //你要摘除的服务实例一共有6个，但是最多只能摘除3个服务实例，下面的代码就会在6个服务实例中，随机选择3个服务实例服务来摘除掉
             Random random = new Random(System.currentTimeMillis());
             for (int i = 0; i < toEvict; i++) {
                 // Pick a random item (Knuth shuffle algorithm)
                 int next = i + random.nextInt(expiredLeases.size() - i);
                 Collections.swap(expiredLeases, i, next);
+
+                //随机挑选出来的，
                 Lease<InstanceInfo> lease = expiredLeases.get(i);
 
                 String appName = lease.getHolder().getAppName();
                 String id = lease.getHolder().getId();
                 EXPIRED.increment();
                 logger.warn("DS: Registry: expired lease for {}/{}", appName, id);
+
+                //对随机挑选的服务实例给债除掉，internalCancel的逻辑上一章已经分析过了
                 internalCancel(appName, id, false);
             }
         }
@@ -1267,6 +1290,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         if (evictionTaskRef.get() != null) {
             evictionTaskRef.get().cancel();
         }
+
+        //具体的定时job在此，60s执行因此
         evictionTaskRef.set(new EvictionTask());
         evictionTimer.schedule(evictionTaskRef.get(),
                 serverConfig.getEvictionIntervalTimerInMs(),
@@ -1295,8 +1320,11 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         @Override
         public void run() {
             try {
+                //获取补偿时间，一般情况下返回的是0，比如一般是3min计算心跳次数，但是上面二次间隔为90s的时候，比预期的60s多30s，那么
+                //我们在计算心跳的时候就应该统计最近3min30s的时间
                 long compensationTimeMs = getCompensationTimeMs();
                 logger.info("Running the evict task with compensationTime {}ms", compensationTimeMs);
+                //进入这个方法
                 evict(compensationTimeMs);
             } catch (Throwable e) {
                 logger.error("Could not run the evict task", e);
@@ -1316,7 +1344,10 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 return 0l;
             }
 
+            //当前时间-上次的毫秒数
             long elapsedMs = TimeUnit.NANOSECONDS.toMillis(currNanos - lastNanos);
+            //相差时间-每次定时任务的毫秒数，意思就是二次执行的时间间隔-我们配置的60s，比如说我们二次间隔时间是90s，
+            // 比配置多了30s，那么我们在计算多久心跳时间多少次没有心跳的时候，应该补偿这个30s
             long compensationTime = elapsedMs - serverConfig.getEvictionIntervalTimerInMs();
             return compensationTime <= 0l ? 0l : compensationTime;
         }

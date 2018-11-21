@@ -59,7 +59,7 @@ public class Lease<T> {
      * associated {@link T} during registration, otherwise default duration is
      * {@link #DEFAULT_DURATION_IN_SECS}.
      *
-     * 更新续约，续约间隔如果注册的时候制定了就使用指定的时间间隔，否则使用默认的时间间隔，即90s
+     * 更新续约，续约间隔如果注册的时候指定了就使用指定的时间间隔，否则使用默认的时间间隔，即90s
      */
     public void renew() {
         //续约其实就是更新一下时间戳，duration默认是90s
@@ -112,6 +112,16 @@ public class Lease<T> {
      * @param additionalLeaseMs any additional lease time to add to the lease evaluation in ms.
      */
     public boolean isExpired(long additionalLeaseMs) {
+
+        //不看那个补偿时间，假如说，当前时间比上次心跳的时间差了超过90s，说明，90s之内，都没有更新过心跳，就说明那个服务实例在90s内没有更新过心跳了，
+        //此时就认为那个服务实例可能已经宕机了
+
+        //如果你没有看过源码，你可能就会犯错，人家问你，多长时间没有心跳，会认为服务实例挂了，你说90s，源码层次的bug，其实应该说是90*2=180s，才会服务实例下线、具体的bug是在renew()方法中，可以看注释
+
+        //失效多级缓存，30s才能同步，服务30s才会重新抓取增量注册表，一个服务实例挂了之后，可能要过几分钟，四五分钟，才能让其他的服务感知到。
+
+        //如果additionalLeaseMs不为0，那么System.currentTimeMillis()必须还要在additionalLeaseMs时间之后才能感知到服务过期了
+
         return (evictionTimestamp > 0 || System.currentTimeMillis() > (lastUpdateTimestamp + duration + additionalLeaseMs));
     }
 
