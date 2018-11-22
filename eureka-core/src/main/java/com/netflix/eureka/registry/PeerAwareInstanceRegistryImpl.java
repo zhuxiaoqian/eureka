@@ -219,21 +219,28 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      * Populates the registry information from a peer eureka node. This
      * operation fails over to other nodes until the list is exhausted if the
      * communication fails.
+     *
+     * eureka server也是一个eureka client，根据配置文件会到其他的eureka server节点抓取注册表（重复抓5次）
      */
     @Override
     public int syncUp() {
         // Copy entire entry from neighboring DS node
         int count = 0;
 
+        //serverConfig.getRegistrySyncRetries()默认值是5，就是默认eureka client会从其他的eureka server拉取注册表的重试次数
         for (int i = 0; ((i < serverConfig.getRegistrySyncRetries()) && (count == 0)); i++) {
+            //第二次进这个if条件
             if (i > 0) {
                 try {
+                    //如果第一次没有在自己本地的eureka client中获取到注册表，说明自己本地的eureka client还没有从任何其他的eureka server上获取注册表，
+                    // 所以此时重试，等待30s之后在去拉取
                     Thread.sleep(serverConfig.getRegistrySyncRetryWaitMs());
                 } catch (InterruptedException e) {
                     logger.warn("Interrupted during registry transfer..");
                     break;
                 }
             }
+            //第一次来了
             Applications apps = eurekaClient.getApplications();
             for (Application app : apps.getRegisteredApplications()) {
                 for (InstanceInfo instance : app.getInstances()) {
@@ -431,7 +438,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
         }
         //调用父类的register方法
         super.register(info, leaseDuration, isReplication);
-        //把服务实例信息同步到其他的eureka实例上去
+        //将这次的注册请求，同步到其他所有的eureka server上去
         replicateToPeers(Action.Register, info.getAppName(), info.getId(), info, null, isReplication);
     }
 
@@ -643,25 +650,33 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      * Replicates all eureka actions to peer eureka nodes except for replication
      * traffic to this node.
      *
+     * 将所有的eureka的动作复制到其他的eureka server上
+     *
      */
     private void replicateToPeers(Action action, String appName, String id,
                                   InstanceInfo info /* optional */,
                                   InstanceStatus newStatus /* optional */, boolean isReplication) {
         Stopwatch tracer = action.getTimer().start();
         try {
+            //如果是某台eureka client来找eureka server进行注册，isReplication都是false
             if (isReplication) {
                 numberOfReplicationsLastMin.increment();
             }
             // If it is a replication already, do not replicate again as this will create a poison replication
+            //这边保证如果是其他eureka server过来同步状态数据的话，直接不再去任何地方去进行请求的复制，直接return回去了
+            //eureka client过来的时候isReplication是false，eureka server请求过来的时候直接return回去了
             if (peerEurekaNodes == Collections.EMPTY_LIST || isReplication) {
                 return;
             }
 
+            //拿到其他的eureka server
             for (final PeerEurekaNode node : peerEurekaNodes.getPeerEurekaNodes()) {
                 // If the url represents this host, do not replicate to yourself.
+                //排除掉自己本身
                 if (peerEurekaNodes.isThisMyUrl(node.getServiceUrl())) {
                     continue;
                 }
+                //将自身的请求同步到其他的eureka server上去
                 replicateInstanceActionsToPeers(action, appName, id, info, newStatus, node);
             }
         } finally {

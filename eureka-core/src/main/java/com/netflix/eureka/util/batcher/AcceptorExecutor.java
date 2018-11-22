@@ -183,6 +183,7 @@ class AcceptorExecutor<ID, T> {
             long scheduleTime = 0;
             while (!isShutdown.get()) {
                 try {
+                    //跟进这个方法中去
                     drainInputQueues();
 
                     int totalItems = processingOrder.size();
@@ -192,6 +193,7 @@ class AcceptorExecutor<ID, T> {
                         scheduleTime = now + trafficShaper.transmissionDelay();
                     }
                     if (scheduleTime <= now) {
+                        //一边往processingOrder中塞，一边拆成一个个的batchwork，会将一段时间的任务打成一个batch
                         assignBatchWork();
                         assignSingleItemWork();
                     }

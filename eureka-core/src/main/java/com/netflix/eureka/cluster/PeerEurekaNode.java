@@ -129,6 +129,8 @@ public class PeerEurekaNode {
      * Sends the registration information of {@link InstanceInfo} receiving by
      * this node to the peer node represented by this class.
      *
+     * 接收这个节点的注册行为并同步到其他对等的eureka server
+     *
      * @param info
      *            the instance information {@link InstanceInfo} of any instance
      *            that is send to this instance.
@@ -136,10 +138,14 @@ public class PeerEurekaNode {
      */
     public void register(final InstanceInfo info) throws Exception {
         long expiryTime = System.currentTimeMillis() + getLeaseRenewalOf(info);
+
+        //会将所有请求封装成task交给batchingDispatcher去执行，看看batchingDispatcher是什么？
         batchingDispatcher.process(
+                //将所有的请求封装成一个task
                 taskId("register", info),
                 new InstanceReplicationTask(targetHost, Action.Register, info, null, true) {
                     public EurekaHttpResponse<Void> execute() {
+                        //具体的步骤是replicationClient.register方法
                         return replicationClient.register(info);
                     }
                 },

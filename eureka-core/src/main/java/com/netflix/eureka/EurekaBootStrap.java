@@ -229,6 +229,8 @@ public class EurekaBootStrap implements ServletContextListener {
 
         EurekaServerContextHolder.initialize(serverContext);
 
+        //会在这里面执行peerEurekaNodes.start();
+        //其实这个方法呢就是每隔10min基于配置文件重新构建出eureka nodes集合
         serverContext.initialize();
         logger.info("Initialized server context");
 

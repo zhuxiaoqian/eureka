@@ -86,6 +86,8 @@ public class PeerEurekaNodes {
                 }
         );
         try {
+            //resolvePeerUrls方法的作用是解析配置文件中其他的eureka server的url地址
+            //updatePeerEurekaNodes方法的左右就是比对新的eureka server列表跟以前是否有区别，没有区别直接返回，有区别则删除不可用的服务列表，新增新加入的eureka server列表
             updatePeerEurekaNodes(resolvePeerUrls());
             Runnable peersUpdateTask = new Runnable() {
                 @Override
@@ -98,8 +100,10 @@ public class PeerEurekaNodes {
 
                 }
             };
+            //启动一个定时，基于配置的url地址列表，每隔10min去更新eureka server列表。
             taskExecutor.scheduleWithFixedDelay(
                     peersUpdateTask,
+                    //10min
                     serverConfig.getPeerEurekaNodesUpdateIntervalMs(),
                     serverConfig.getPeerEurekaNodesUpdateIntervalMs(),
                     TimeUnit.MILLISECONDS
@@ -132,6 +136,7 @@ public class PeerEurekaNodes {
     protected List<String> resolvePeerUrls() {
         InstanceInfo myInfo = applicationInfoManager.getInfo();
         String zone = InstanceInfo.getZone(clientConfig.getAvailabilityZones(clientConfig.getRegion()), myInfo);
+        //这边就是解析的步骤
         List<String> replicaUrls = EndpointUtils
                 .getDiscoveryServiceUrls(clientConfig, zone, new EndpointUtils.InstanceInfoBasedUrlRandomizer(myInfo));
 
@@ -165,6 +170,7 @@ public class PeerEurekaNodes {
         Set<String> toAdd = new HashSet<>(newPeerUrls);
         toAdd.removeAll(peerEurekaNodeUrls);
 
+        //比对url列表没有变化
         if (toShutdown.isEmpty() && toAdd.isEmpty()) { // No change
             return;
         }
@@ -190,6 +196,7 @@ public class PeerEurekaNodes {
         if (!toAdd.isEmpty()) {
             logger.info("Adding new peer nodes {}", toAdd);
             for (String peerUrl : toAdd) {
+                //基于URL地址构建一个个的PeerEurekaNode，一个PeerEurekaNode代表着一个eureka server
                 newNodeList.add(createPeerEurekaNode(peerUrl));
             }
         }
