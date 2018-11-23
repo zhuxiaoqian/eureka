@@ -37,6 +37,7 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
     @Override
     public ProcessingResult process(ReplicationTask task) {
         try {
+            //submitBatchUpdates方法执行一个批次的请求，这边调用的是com.netflix.eureka.transport.Jersey2ReplicationClient.submitBatchUpdates()方法
             EurekaHttpResponse<?> httpResponse = task.execute();
             int statusCode = httpResponse.getStatusCode();
             Object entity = httpResponse.getEntity();

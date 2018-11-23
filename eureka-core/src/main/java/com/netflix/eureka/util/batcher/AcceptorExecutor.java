@@ -183,7 +183,7 @@ class AcceptorExecutor<ID, T> {
             long scheduleTime = 0;
             while (!isShutdown.get()) {
                 try {
-                    //跟进这个方法中去
+                    //跟进这个方法中去，这个方法中将请求放到processingOrder中去
                     drainInputQueues();
 
                     int totalItems = processingOrder.size();
@@ -219,6 +219,7 @@ class AcceptorExecutor<ID, T> {
         private void drainInputQueues() throws InterruptedException {
             do {
                 drainReprocessQueue();
+                //维护processingOrder队列
                 drainAcceptorQueue();
 
                 if (!isShutdown.get()) {
@@ -250,6 +251,7 @@ class AcceptorExecutor<ID, T> {
                     overriddenTasks++;
                 } else {
                     pendingTasks.put(id, taskHolder);
+                    //新放到一个队列中去，
                     processingOrder.addFirst(id);
                 }
             }
@@ -291,6 +293,7 @@ class AcceptorExecutor<ID, T> {
         }
 
         void assignBatchWork() {
+            //会将一段时间的work打包成一个batch
             if (hasEnoughTasksForNextBatch()) {
                 if (batchWorkRequests.tryAcquire(1)) {
                     long now = System.currentTimeMillis();
@@ -300,6 +303,7 @@ class AcceptorExecutor<ID, T> {
                         ID id = processingOrder.poll();
                         TaskHolder<ID, T> holder = pendingTasks.remove(id);
                         if (holder.getExpiryTime() > now) {
+                            //打包成一个batch
                             holders.add(holder);
                         } else {
                             expiredTasks++;
